@@ -24,10 +24,15 @@ class Tomograf:
     def getSinogram(self):
         for i in np.linspace(0, 2*np.pi, num=360//self.dalfa):
             tmp = np.empty([0])
+            detectorsTab = []
+            emitersTab = []
             for j in range(self.number):
-                tab = np.array([np.sin(i+np.pi-(self.length/2)+j*(self.length/(self.number-1))),
-                                np.cos(i+np.pi-(self.length/2)+j*(self.length/(self.number-1)))])
-                x, y = draw.line_nd(self.center+self.r*tab, 2*self.center-(self.center+self.r*tab))
+                tab = np.array([np.sin(i + np.pi - (self.length / 2) + j * (self.length / (self.number - 1))),
+                                np.cos(i + np.pi - (self.length / 2) + j * (self.length / (self.number - 1)))])
+                detectorsTab.append(self.center+self.r*tab)
+                emitersTab.insert(0, 2*self.center-(self.center+self.r*tab))
+            for j in range(self.number):
+                x, y = draw.line_nd(detectorsTab[j], emitersTab[j])
                 #print("od {} do {}".format(self.center+self.r*tab, 2*self.center-(self.center+self.r*tab)))
                 tmp2 = []
                 for k in range(len(y)):
@@ -35,12 +40,7 @@ class Tomograf:
                         if self.img[y[k]][x[k]] > 0:
                             tmp2.append(self.img[y[k]][x[k]])
                 if len(tmp2)>0:
-                    sum = 0
-                    for z in tmp2:
-                        sum += z*0.1
-                    if sum > 1:
-                        sum = 1
-                    tmp = np.concatenate((tmp, [sum]))
+                    tmp = np.concatenate((tmp, [np.average(tmp2)]))
                 else:
                     tmp = np.concatenate((tmp, [0.0]))
             self.sinogram = np.concatenate((self.sinogram, [tmp]))
@@ -48,6 +48,6 @@ class Tomograf:
         io.show()
 
 
-t = Tomograf(180, np.pi/4, 4)
+t = Tomograf(180, np.pi, 4)
 t.loadImg("photos/Kropka.jpg")
 t.getSinogram()
