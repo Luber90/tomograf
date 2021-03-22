@@ -54,6 +54,25 @@ class Tomograf:
                 else: #jak nie to zero
                     tmp = np.concatenate((tmp, [0.0]))
             self.sinogram = np.concatenate((self.sinogram, [tmp]))
+            
+        # fourier
+        freq = np.fft.fftfreq(len(self.sinogram)).reshape(-1, 1)
+        f_filter = 2 * np.abs(freq)
+        projection = np.fft.fft(self.sinogram, axis=0) * f_filter
+        self.sinogram = np.real(np.fft.ifft(projection, axis=0))
+
+        kernel_len = 21  # 21?
+        kernel = np.zeros(kernel_len)
+
+        # filtr
+        for i in range(0, kernel_len):
+            if (i - kernel_len // 2) % 2 != 0:
+                kernel[i] = -4 / (np.pi ** 2) / ((i - kernel_len // 2) ** 2)  # -4/pi^2/k^2
+            kernel[kernel_len // 2] = 1
+
+        # splot
+        for i in range(360 // self.dalfa):
+            self.sinogram[i, :] = np.convolve(self.sinogram[i, :], kernel, mode='same')
 
         #odtwarzanie obrazka
         for i in range(360//self.dalfa):  # kazda iteracja to jeden obrot
