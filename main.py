@@ -2,6 +2,9 @@ from skimage import io
 from skimage import draw
 from skimage import exposure
 import numpy as np
+import os
+import datetime
+from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
 class Tomograf:
     def __init__(self, n, l, a):
@@ -110,9 +113,60 @@ class Tomograf:
         cos = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1))  # poprawia
         io.imshow(cos)
         io.show()
+        
+    def saveDicom(self):
+        image = self.result * 255
+        image = image.astype(np.uint16)
 
+        filename = os.path.dirname(os.path.abspath(__file__))
+        filename += "\dicom.dcm"
+
+        # Populate required values for file meta information
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+        file_meta.ImplementationClassUID = "1.2.3.4"
+
+        # Create the FileDataset instance (initially no data elements, but file_meta
+        # supplied)
+        ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
+
+        # Add the data elements
+        ds.PatientName = "Test^Firstname"
+        ds.PatientID = "123456"
+        ds.PatientAge = "20"
+        ds.PatientComments = "Komentarz"
+
+        ds.BitsStored = 16
+        ds.BitsAllocated = 16
+        ds.HighBit = 15
+        ds.Columns = image.shape[0]
+        ds.Rows = image.shape[1]
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.SmallestImagePixelValue = b'\\x00\\x00'
+        ds.LargestImagePixelValue = b'\\xff\\xff'
+
+        # Set the transfer syntax
+        ds.is_little_endian = True
+        ds.is_implicit_VR = True
+
+        # Set creation date/time
+        dt = datetime.datetime.now()
+        ds.ContentDate = dt.strftime('%Y%m%d')
+        timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
+        ds.ContentTime = timeStr
+
+        ds.PixelData = image.tobytes()
+
+        ds.save_as(filename, write_like_original=False)
+        print("File saved")
+
+        
 if __name__ == "__main__":
     t = Tomograf(180, np.pi, 4)
     t.loadImg("photos/Kropka.jpg")
     t.run(False, True, 180, np.pi, 4)
     t.showResult(3, 98)
+    t.saveDicom()
