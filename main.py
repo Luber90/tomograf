@@ -15,6 +15,8 @@ class Tomograf:
         self.width = 0 #szereokosc obrazka
         self.center = np.array([0, 0])
         #self.sinogram = np.empty([0, n])
+        self.p1 = 3
+        self.p2 = 98
         self.sinogram = np.zeros((360//a, n))
 
 
@@ -27,7 +29,7 @@ class Tomograf:
         self.center = np.array([(self.width-1)/2, (self.height-1)/2])#srodek obrazka
         #self.r = np.sqrt(self.center[0]**2+self.center[1]**2) #dlugosc polowy przekatnej, czyli promien kola opisanego
                                                              # na zdjeciu
-        self.r = min(self.height, self.width)/2
+        self.r = max(self.height, self.width)/2
 
 
     def run(self, four=False, filtr=True, n=180, l=np.pi, a=4):
@@ -109,14 +111,21 @@ class Tomograf:
         io.show()
 
     def showResult(self, p1=3, p2=98):
+        self.p1 = p1
+        self.p2 = p2
         p_start, p_end = np.percentile(self.result, [p1, p2])
         cos = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1))  # poprawia
         io.imshow(cos)
         io.show()
-        
-    def saveDicom(self):
-        image = self.result * 255
+
+    def currRes(self):
+        p_start, p_end = np.percentile(self.result, [self.p1, self.p2])
+        return exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1))
+
+    def saveDicom(self, name, idd, age, comment, date, time):
+        image = self.currRes() * 255
         image = image.astype(np.uint16)
+
 
         filename = os.path.dirname(os.path.abspath(__file__))
         filename += "\dicom.dcm"
@@ -130,12 +139,11 @@ class Tomograf:
         # Create the FileDataset instance (initially no data elements, but file_meta
         # supplied)
         ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
-
         # Add the data elements
-        ds.PatientName = "Test^Firstname"
-        ds.PatientID = "123456"
-        ds.PatientAge = "20"
-        ds.PatientComments = "Komentarz"
+        ds.PatientName = name
+        ds.PatientID = idd
+        ds.PatientAge = age
+        ds.PatientComments = comment
 
         ds.BitsStored = 16
         ds.BitsAllocated = 16
@@ -154,9 +162,10 @@ class Tomograf:
 
         # Set creation date/time
         dt = datetime.datetime.now()
-        ds.ContentDate = dt.strftime('%Y%m%d')
-        timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
-        ds.ContentTime = timeStr
+        #ds.ContentDate = dt.strftime('%Y%m%d')
+        ds.ContentDate = date
+        #timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
+        ds.ContentTime = time
 
         ds.PixelData = image.tobytes()
 
@@ -166,7 +175,7 @@ class Tomograf:
         
 if __name__ == "__main__":
     t = Tomograf(180, np.pi, 4)
-    t.loadImg("photos/Kropka.jpg")
+    t.loadImg("photos/SADDLE_PE.jpg")
     t.run(False, True, 180, np.pi, 4)
     t.showResult(3, 98)
     t.saveDicom()
