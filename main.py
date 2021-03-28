@@ -4,6 +4,7 @@ from skimage import exposure
 import numpy as np
 import os
 import datetime
+import pydicom
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
 class Tomograf:
@@ -181,11 +182,30 @@ class Tomograf:
         print("File saved")
 
         
+def readDicom(filename):
+    path = os.path.dirname(os.path.abspath(__file__))
+    file = path + "\\" + filename
+    ds = pydicom.dcmread(file)
+    image = ds.pixel_array
+    image = image.astype(np.uint16) * 255
+
+    return ds, image
+        
+    
 if __name__ == "__main__":
-    t = Tomograf(180, np.pi, 2)
-    t.loadImg("photos/SADDLE_PE.jpg")
-    t.run(True, True, 360, 3*np.pi/4, 1)
-    t.showResult(20, 98)
-    print(t.rmse())
-    t.saveResult(20, 98)
-    #t.saveDicom()
+    # t = Tomograf(180, np.pi, 2)
+    # t.loadImg("photos/Kropka.jpg")
+    # t.run(True, True, 360, 3 * np.pi / 4, 1)
+    # t.showResult(20, 98)
+    # print(t.rmse())
+    # t.saveResult(20, 98)
+    # t.saveDicom()
+    dicom_ds, image = readDicom("dicom.dcm")
+    io.imshow(image)
+    io.show()
+    print(dicom_ds.data_element("ContentDate").value)
+    print(dicom_ds.data_element("ContentTime").value)
+    print(dicom_ds.data_element("PatientName").value)
+    print(dicom_ds.data_element("PatientID").value)
+    print(dicom_ds.data_element("PatientAge").value)
+    print(dicom_ds.data_element("PatientComments").value)
