@@ -17,7 +17,7 @@ class Tomograf:
         #self.sinogram = np.empty([0, n])
         self.p1 = 3
         self.p2 = 98
-        self.sinogram = np.zeros((360//a, n))
+        self.sinogram = np.zeros((int(360//a), n))
 
 
     def loadImg(self, name):
@@ -36,10 +36,10 @@ class Tomograf:
         self.number = n
         self.length = l
         self.dalfa = a
-        self.sinogram = np.zeros((360 // a, n))
-        self.showPicture()
+        self.sinogram = np.zeros((int(360//a), n))
+        #self.showPicture()
         all = [] #wszystkie wspolrzedne emiterow i detektorow tu beda
-        for z, i in enumerate(np.linspace(0, 2*np.pi-(np.pi*2*(self.dalfa/360)), num=360//self.dalfa)): #kazda iteracja to jeden obrot
+        for z, i in enumerate(np.linspace(0, 2*np.pi-(np.pi*2*(self.dalfa/360)), num=int(360//a))): #kazda iteracja to jeden obrot
             detectorsTab = [] #tu beda wspolrzedne detektorow
             emitersTab = [] #jak wyzej tylko emitery
             for j in range(self.number): #iteracja po kazdym detektorze
@@ -60,8 +60,8 @@ class Tomograf:
 
                 for k in range(len(y)):
                     if 0 <= x[k] < self.width and 0 <= y[k] < self.height: #jesli punkt jest na obrazie to idzie dalej
-                        if self.img[y[k]][x[k]] > 0: #dodajemy tylko jesli piksel nie jest czarny
-                            tmp2.append(self.img[y[k]][x[k]])
+                        #if self.img[y[k]][x[k]] > 0: #dodajemy tylko jesli piksel nie jest czarny
+                        tmp2.append(self.img[y[k]][x[k]])
                 if len(tmp2)>0: #jak cos jest to srednia z tych pikseli
                     #tmp = np.concatenate((tmp, [np.average(tmp2)]))
                     self.sinogram[z][j] = np.average(tmp2)
@@ -87,17 +87,16 @@ class Tomograf:
                     kernel[kernel_len // 2 + i] = -4 / (np.pi ** 2) / (i** 2)  # -4/pi^2/k^2
                     kernel[kernel_len // 2 - i] = -4 / (np.pi ** 2) / ( i** 2)
             # splot
-            for i in range(360 // self.dalfa):
+            for i in range(int(360//a)):
                 self.sinogram[i, :] = np.convolve(self.sinogram[i, :], kernel, mode='same')
         #odtwarzanie obrazka
-        for i in range(360//self.dalfa):  # kazda iteracja to jeden obrot
+        for i in range(int(360//a)):  # kazda iteracja to jeden obrot
             for j in range(self.number):
                 x, y = draw.line_nd(all[i][1][j], all[i][0][j])
                 for k in range(len(y)):
                     if 0 <= x[k] < self.width and 0 <= y[k] < self.height: #jesli punkt jest na obrazie to idzie dalej
-                        if self.sinogram[i][j] > 0:
-                            self.result[y[k]][x[k]] += self.sinogram[i][j] #dodajemy na całej długości wartość sinogramy
-        self.showSinogram()
+                        self.result[y[k]][x[k]] += self.sinogram[i][j] #dodajemy na całej długości wartość sinogramy
+        #self.showSinogram()
         #p_start, p_end = np.percentile(self.result, [30, 70])
         #self.result = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1)) #poprawia
 
@@ -118,9 +117,18 @@ class Tomograf:
         io.imshow(cos)
         io.show()
 
+    def saveResult(self, p1=3, p2=98):
+        p_start, p_end = np.percentile(self.result, [p1, p2])
+        cos = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1))  # poprawia
+        io.imsave("res.jpg", cos)
+
     def currRes(self):
         p_start, p_end = np.percentile(self.result, [self.p1, self.p2])
         return exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1))
+
+    def rmse(self):
+        return np.sqrt(np.mean((self.currRes()-self.img)**2))
+
 
     def saveDicom(self, name, idd, age, comment, date, time):
         image = self.currRes() * 255
@@ -174,8 +182,10 @@ class Tomograf:
 
         
 if __name__ == "__main__":
-    t = Tomograf(180, np.pi, 4)
+    t = Tomograf(180, np.pi, 2)
     t.loadImg("photos/SADDLE_PE.jpg")
-    t.run(False, True, 180, np.pi, 4)
-    t.showResult(3, 98)
-    t.saveDicom()
+    t.run(True, True, 360, 3*np.pi/4, 1)
+    t.showResult(20, 98)
+    print(t.rmse())
+    t.saveResult(20, 98)
+    #t.saveDicom()
