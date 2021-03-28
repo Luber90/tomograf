@@ -157,8 +157,8 @@ class Tomograf:
         ds.BitsStored = 16
         ds.BitsAllocated = 16
         ds.HighBit = 15
-        ds.Columns = image.shape[0]
-        ds.Rows = image.shape[1]
+        ds.Columns = self.width  # image.shape[0]
+        ds.Rows = self.height #  image.shape[1]
         ds.SamplesPerPixel = 1
         ds.PhotometricInterpretation = "MONOCHROME2"
         ds.PixelRepresentation = 0
