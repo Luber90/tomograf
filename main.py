@@ -15,7 +15,6 @@ class Tomograf:
         self.height = 0 #wysokosc obrazka
         self.width = 0 #szereokosc obrazka
         self.center = np.array([0, 0])
-        #self.sinogram = np.empty([0, n])
         self.p1 = 3
         self.p2 = 98
         self.sinogram = np.zeros((int(360//a), n))
@@ -28,8 +27,6 @@ class Tomograf:
         self.width = len(self.img[0])
         self.result = np.zeros((self.height, self.width))
         self.center = np.array([(self.width-1)/2, (self.height-1)/2])#srodek obrazka
-        #self.r = np.sqrt(self.center[0]**2+self.center[1]**2) #dlugosc polowy przekatnej, czyli promien kola opisanego
-                                                             # na zdjeciu
         self.r = max(self.height, self.width)/2
 
 
@@ -38,7 +35,7 @@ class Tomograf:
         self.length = l
         self.dalfa = a
         self.sinogram = np.zeros((int(360//a), n))
-        #self.showPicture()
+        self.showPicture()
         all = [] #wszystkie wspolrzedne emiterow i detektorow tu beda
         for z, i in enumerate(np.linspace(0, 2*np.pi-(np.pi*2*(self.dalfa/360)), num=int(360//a))): #kazda iteracja to jeden obrot
             detectorsTab = [] #tu beda wspolrzedne detektorow
@@ -97,7 +94,7 @@ class Tomograf:
                 for k in range(len(y)):
                     if 0 <= x[k] < self.width and 0 <= y[k] < self.height: #jesli punkt jest na obrazie to idzie dalej
                         self.result[y[k]][x[k]] += self.sinogram[i][j] #dodajemy na całej długości wartość sinogramy
-        #self.showSinogram()
+        self.showSinogram()
         #p_start, p_end = np.percentile(self.result, [30, 70])
         #self.result = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1)) #poprawia
 
@@ -131,65 +128,77 @@ class Tomograf:
         return np.sqrt(np.mean((self.currRes()-self.img)**2))
 
 
-    def saveDicom(self, name, idd, age, comment, date, time):
-        image = self.currRes() * 255
-        image = image.astype(np.uint16)
+    def saveDicom(self, name, idd, age, comment, date, time, f):
+        try:
+            image = self.currRes() * 255
+            image = image.astype(np.uint16)
 
 
-        filename = os.path.dirname(os.path.abspath(__file__))
-        filename += "\dicom.dcm"
+            filename = os.path.dirname(os.path.abspath(__file__))
+            filename += "\\"+f
 
-        # Populate required values for file meta information
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
-        file_meta.ImplementationClassUID = "1.2.3.4"
+            # Populate required values for file meta information
+            file_meta = FileMetaDataset()
+            file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+            file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+            file_meta.ImplementationClassUID = "1.2.3.4"
 
-        # Create the FileDataset instance (initially no data elements, but file_meta
-        # supplied)
-        ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
-        # Add the data elements
-        ds.PatientName = name
-        ds.PatientID = idd
-        ds.PatientAge = age
-        ds.PatientComments = comment
+            # Create the FileDataset instance (initially no data elements, but file_meta
+            # supplied)
+            ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
+            # Add the data elements
+            ds.PatientName = name
+            ds.PatientID = idd
+            ds.PatientAge = age
+            ds.PatientComments = comment
 
-        ds.BitsStored = 16
-        ds.BitsAllocated = 16
-        ds.HighBit = 15
-        ds.Columns = self.width  # image.shape[0]
-        ds.Rows = self.height #  image.shape[1]
-        ds.SamplesPerPixel = 1
-        ds.PhotometricInterpretation = "MONOCHROME2"
-        ds.PixelRepresentation = 0
-        ds.SmallestImagePixelValue = b'\\x00\\x00'
-        ds.LargestImagePixelValue = b'\\xff\\xff'
+            ds.BitsStored = 16
+            ds.BitsAllocated = 16
+            ds.HighBit = 15
+            ds.Columns = self.width  # image.shape[0]
+            ds.Rows = self.height #  image.shape[1]
+            ds.SamplesPerPixel = 1
+            ds.PhotometricInterpretation = "MONOCHROME2"
+            ds.PixelRepresentation = 0
+            ds.SmallestImagePixelValue = b'\\x00\\x00'
+            ds.LargestImagePixelValue = b'\\xff\\xff'
 
-        # Set the transfer syntax
-        ds.is_little_endian = True
-        ds.is_implicit_VR = True
+            # Set the transfer syntax
+            ds.is_little_endian = True
+            ds.is_implicit_VR = True
 
-        # Set creation date/time
-        dt = datetime.datetime.now()
-        #ds.ContentDate = dt.strftime('%Y%m%d')
-        ds.ContentDate = date
-        #timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
-        ds.ContentTime = time
+            # Set creation date/time
+            dt = datetime.datetime.now()
+            #ds.ContentDate = dt.strftime('%Y%m%d')
+            ds.ContentDate = date
+            #timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
+            ds.ContentTime = time
 
-        ds.PixelData = image.tobytes()
+            ds.PixelData = image.tobytes()
 
-        ds.save_as(filename, write_like_original=False)
-        print("File saved")
+            ds.save_as(filename, write_like_original=False)
+            print("File saved")
+        except:
+            print("Error occured")
 
         
-def readDicom(filename):
+def readDicom(savedFile):
     path = os.path.dirname(os.path.abspath(__file__))
-    file = path + "\\" + filename
-    ds = pydicom.dcmread(file)
-    image = ds.pixel_array
-    image = image.astype(np.uint16) * 255
-
-    return ds, image
+    file = path + "\\" + savedFile
+    try:
+        dicom_ds = pydicom.dcmread(file)
+        image = dicom_ds.pixel_array
+        image = image.astype(np.uint16) * 255
+        io.imshow(image)
+        io.show()
+        print("Date: "+dicom_ds.data_element("ContentDate").value)
+        print("Time: "+dicom_ds.data_element("ContentTime").value)
+        print("Name: {}".format(dicom_ds.data_element("PatientName").value))
+        print("ID: "+dicom_ds.data_element("PatientID").value)
+        print("Age: "+dicom_ds.data_element("PatientAge").value)
+        print("Comment: "+dicom_ds.data_element("PatientComments").value)
+    except FileNotFoundError:
+        print("File not found")
         
     
 if __name__ == "__main__":
@@ -200,12 +209,5 @@ if __name__ == "__main__":
     # print(t.rmse())
     # t.saveResult(20, 98)
     # t.saveDicom()
-    dicom_ds, image = readDicom("dicom.dcm")
-    io.imshow(image)
-    io.show()
-    print(dicom_ds.data_element("ContentDate").value)
-    print(dicom_ds.data_element("ContentTime").value)
-    print(dicom_ds.data_element("PatientName").value)
-    print(dicom_ds.data_element("PatientID").value)
-    print(dicom_ds.data_element("PatientAge").value)
-    print(dicom_ds.data_element("PatientComments").value)
+    readDicom("dicom.dcm")
+
