@@ -17,7 +17,9 @@ class Tomograf:
         self.center = np.array([0, 0])
         self.p1 = 3
         self.p2 = 98
-        self.sinogram = np.zeros((int(360//a), n))
+        self.sintab = []
+        self.resulttab = []
+        self.sinogram = np.zeros((int(180//a), n))
 
 
     def loadImg(self, name):
@@ -31,13 +33,16 @@ class Tomograf:
 
 
     def run(self, four=False, filtr=True, n=180, l=np.pi, a=4):
+        ite = int(180 // a)//10
+        self.sintab = []
+        self.restab = []
         self.number = n
         self.length = l
         self.dalfa = a
-        self.sinogram = np.zeros((int(360//a), n))
+        self.sinogram = np.zeros((int(180//a), n))
         self.showPicture()
         all = [] #wszystkie wspolrzedne emiterow i detektorow tu beda
-        for z, i in enumerate(np.linspace(0, 2*np.pi-(np.pi*2*(self.dalfa/360)), num=int(360//a))): #kazda iteracja to jeden obrot
+        for z, i in enumerate(np.linspace(0, 2*np.pi-(np.pi*2*(self.dalfa/180)), num=int(180//a))): #kazda iteracja to jeden obrot
             detectorsTab = [] #tu beda wspolrzedne detektorow
             emitersTab = [] #jak wyzej tylko emitery
             for j in range(self.number): #iteracja po kazdym detektorze
@@ -65,6 +70,8 @@ class Tomograf:
                     self.sinogram[z][j] = np.average(tmp2)
                 #else: #jak nie to zero
                     #tmp = np.concatenate((tmp, [0.0]))
+            if z % ite == 0:
+                self.sintab.append(self.sinogram.copy())
             #self.sinogram = np.concatenate((self.sinogram, [tmp]))
 
         # fourier
@@ -85,18 +92,37 @@ class Tomograf:
                     kernel[kernel_len // 2 + i] = -4 / (np.pi ** 2) / (i** 2)  # -4/pi^2/k^2
                     kernel[kernel_len // 2 - i] = -4 / (np.pi ** 2) / ( i** 2)
             # splot
-            for i in range(int(360//a)):
+            for i in range(int(180//a)):
                 self.sinogram[i, :] = np.convolve(self.sinogram[i, :], kernel, mode='same')
         #odtwarzanie obrazka
-        for i in range(int(360//a)):  # kazda iteracja to jeden obrot
+        for i in range(int(180//a)):  # kazda iteracja to jeden obrot
             for j in range(self.number):
                 x, y = draw.line_nd(all[i][1][j], all[i][0][j])
                 for k in range(len(y)):
                     if 0 <= x[k] < self.width and 0 <= y[k] < self.height: #jesli punkt jest na obrazie to idzie dalej
                         self.result[y[k]][x[k]] += self.sinogram[i][j] #dodajemy na całej długości wartość sinogramy
+            if i % ite == 0:
+                self.restab.append(self.result.copy())
         self.showSinogram()
         #p_start, p_end = np.percentile(self.result, [30, 70])
         #self.result = exposure.rescale_intensity(self.result, in_range=(p_start, p_end), out_range=(0, 1)) #poprawia
+
+    def getSinTab(self, n):
+        try:
+            cos = exposure.rescale_intensity(self.sintab[n-1], out_range=(0, 1))
+            io.imshow(cos)
+            io.show()
+        except:
+            print("Sinogram")
+
+    def getResTab(self, n):
+        try:
+            p_start, p_end = np.percentile(self.restab[n-1], [10, 98])
+            cos = exposure.rescale_intensity(self.restab[n-1], in_range=(p_start, p_end), out_range=(0, 1))
+            io.imshow(cos)
+            io.show()
+        except:
+            print("Result")
 
     def showPicture(self):
         io.imshow(self.img)
